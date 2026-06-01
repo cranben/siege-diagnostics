@@ -12,6 +12,7 @@ cache/
 
 *.csv
 *.sql
+!database/schema.sql
 *.zip
 *.tar
 *.tar.gz

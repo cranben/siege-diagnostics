@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS cdr_import_batches (
     original_filename TEXT NOT NULL,
     stored_filename   TEXT NOT NULL,
     file_type         TEXT NOT NULL,
+    source_type       TEXT NOT NULL DEFAULT 'csv',
+    source_label      TEXT,
     status            TEXT NOT NULL,
     total_rows        INTEGER NOT NULL DEFAULT 0,
     imported_rows     INTEGER NOT NULL DEFAULT 0,
@@ -25,6 +27,10 @@ COMMENT ON COLUMN cdr_import_batches.status IS
     'Current import stage, such as uploaded, imported, or imported_with_errors.';
 COMMENT ON COLUMN cdr_import_batches.stored_filename IS
     'Opaque server-side filename used to locate the uploaded artifact.';
+COMMENT ON COLUMN cdr_import_batches.source_type IS
+    'Stable machine-readable ingestion adapter or source category.';
+COMMENT ON COLUMN cdr_import_batches.source_label IS
+    'Optional human-readable description of the ingestion source.';
 
 CREATE TABLE IF NOT EXISTS cdr_records (
     id                                  BIGSERIAL PRIMARY KEY,
