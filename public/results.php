@@ -77,6 +77,7 @@ function e($value): string {
 	<th>Import</th>
 	<th>Analyze</th> 
 	<th>Findings</th>
+	<th>Delete</th>
     
 </tr> 
 
@@ -116,6 +117,13 @@ function e($value): string {
                 <?php else: ?>
                     —
                 <?php endif; ?>
+            </td>
+
+            <td>
+                <form method="post" action="/delete_batch.php" onsubmit="return confirm('Delete this import batch and its related call data?');">
+                    <input type="hidden" name="batch_id" value="<?= e($batch['id']) ?>">
+                    <button type="submit">Delete</button>
+                </form>
             </td>
         </tr>
     <?php endforeach; ?>
