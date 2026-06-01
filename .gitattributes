@@ -1,0 +1,11 @@
+# Keep project text files consistent when developed on Windows and deployed to Linux.
+*.php  text eol=lf
+*.css  text eol=lf
+*.js   text eol=lf
+*.html text eol=lf
+*.htm  text eol=lf
+*.sql  text eol=lf
+*.sh   text eol=lf
+
+# Keep this policy file itself stable across platforms.
+.gitattributes text eol=lf
