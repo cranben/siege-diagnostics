@@ -1,0 +1,27 @@
+warning: in the working copy of 'app/data_sources/CdrSourceInterface.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/data_sources/CsvImportSource.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/data_sources/FusionPbxPostgresSource.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/analyze_batch.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/findings.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/import_batch.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/index.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/results.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/rules.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/upload.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/analyze_batch.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/import_csv.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/seed_rules.php', LF will be replaced by CRLF the next time Git touches it
+ app/data_sources/CdrSourceInterface.php      |  3 [32m+++[m
+ app/data_sources/CsvImportSource.php         |  3 [32m+++[m
+ app/data_sources/FusionPbxPostgresSource.php |  4 [32m++++[m
+ public/analyze_batch.php                     |  3 [32m+++[m
+ public/findings.php                          |  3 [32m+++[m
+ public/import_batch.php                      |  3 [32m+++[m
+ public/index.php                             |  2 [32m++[m
+ public/results.php                           |  2 [32m++[m
+ public/rules.php                             |  5 [32m+++++[m
+ public/upload.php                            |  6 [32m++++++[m
+ scripts/analyze_batch.php                    | 16 [32m++++++++++++++++[m
+ scripts/import_csv.php                       | 11 [32m+++++++++++[m
+ scripts/seed_rules.php                       |  7 [32m+++++++[m
+ 13 files changed, 68 insertions(+)

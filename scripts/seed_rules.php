@@ -4,6 +4,11 @@ $config = require __DIR__ . '/../app/config.php';
 $pdo = require __DIR__ . '/../app/db.php';
 
 
+// Seed data defines the initial diagnostic vocabulary:
+// Scenario = operator-facing issue category.
+// Pattern = JSON conditions interpreted by scripts/analyze_batch.php.
+// Evidence = human-readable facts copied into each materialized finding.
+// Call Details are attached later through diagnostic_finding_calls.
 $rules = [
     [
         'rule_key' => 'short_answered_calls',
@@ -161,6 +166,8 @@ $stmt = $pdo->prepare("
         updated_at = now()
 ");
 
+// rule_key is the stable identity for tuning seeded rules across deployments.
+// The database schema must enforce its uniqueness for this upsert to be reliable.
 foreach ($rules as $rule) {
     $stmt->execute([
         ':rule_key' => $rule['rule_key'],

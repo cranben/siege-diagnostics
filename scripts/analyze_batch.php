@@ -20,6 +20,9 @@ function json_array($value): array {
 }
 
 function build_where(array $conditions, array &$params): string {
+    // Conditions are the Pattern layer of Scenario -> Pattern -> Evidence ->
+    // Call Details. Keep predicate support explicit so stored rules cannot inject
+    // arbitrary SQL and each rule capability remains reviewable.
     $where = ["batch_id = :batch_id"];
 
     if (!empty($conditions['call_status'])) {
@@ -56,6 +59,8 @@ function build_where(array $conditions, array &$params): string {
 }
 
 function group_field_from_conditions(array $conditions): ?string {
+    // Unlike predicate values, a SQL identifier cannot be parameterized. This
+    // allowlist is a safety boundary for JSON-authored grouping rules.
     $allowed = [
         'extension',
         'domain_uuid',
@@ -80,6 +85,9 @@ function group_field_from_conditions(array $conditions): ?string {
 $pdo->beginTransaction();
 
 try {
+    // Findings are a materialized view of the current enabled rules. Re-analysis
+    // replaces one batch atomically so operators do not see mixed rule versions.
+    // The schema must cascade or otherwise clean up diagnostic_finding_calls.
     $delete = $pdo->prepare("
         DELETE FROM diagnostic_findings
         WHERE batch_id = :batch_id
@@ -136,6 +144,8 @@ try {
     $callsLinked = 0;
 
     foreach ($rules as $rule) {
+        // Each rule supplies a Scenario, a machine-readable Pattern, and a
+        // human-readable Evidence template. Matching calls are linked below.
         $conditions = json_array($rule['conditions']);
         $evidenceTemplate = json_array($rule['evidence_template']);
 
@@ -146,6 +156,8 @@ try {
         $minimumCount = isset($conditions['minimum_count']) ? (int)$conditions['minimum_count'] : 1;
 
         if ($groupBy) {
+            // Grouped findings surface repeated patterns such as multiple calls
+            // from one extension instead of producing one broad batch finding.
             $sql = "
                 SELECT {$groupBy} AS group_value, COUNT(*) AS total
                 FROM cdr_records
@@ -180,6 +192,8 @@ try {
                 $calls = $callStmt->fetchAll(PDO::FETCH_ASSOC);
 
                 $evidence = $evidenceTemplate;
+                // Append measured context so the finding explains why the group
+                // crossed the rule threshold, not just which rule was selected.
                 $evidence[] = "{$groupBy}=" . $group['group_value'];
                 $evidence[] = "matched_call_count=" . count($calls);
 
@@ -223,6 +237,8 @@ try {
             }
 
             $evidence = $evidenceTemplate;
+            // Non-grouped findings still retain the observed match count as
+            // concrete evidence for the scenario presented in the UI.
             $evidence[] = "matched_call_count=" . count($calls);
 
             $findingInsert->execute([

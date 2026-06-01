@@ -21,6 +21,8 @@ include __DIR__ . '/../app/nav.php';
 <h1>Siege Diagnostics</h1>
 <h2>CDR Import Lab</h2>
 
+<!-- Upload creates a tracked batch first; importing and analysis are deliberate
+     follow-up actions so operators can see each stage of the diagnostic flow. -->
 <form method="post" action="upload.php" enctype="multipart/form-data">
 
     <label>Select FusionPBX CDR CSV file:</label>

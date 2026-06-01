@@ -15,6 +15,8 @@ $pdo = require __DIR__ . '/../app/db.php';
 
 function clean_key(string $key): string
 {
+    // FusionPBX exports can label equivalent columns differently. Canonicalizing
+    // headers here lets later alias lookups normalize those variations once.
     $key = strtolower(trim($key));
     $key = str_replace([' ', '-', '.'], '_', $key);
     return preg_replace('/[^a-z0-9_]/', '', $key);
@@ -22,6 +24,8 @@ function clean_key(string $key): string
 
 function value(array $row, array $keys): ?string
 {
+    // Prefer the first populated alias so downstream analysis reads a stable
+    // cdr_records schema regardless of which supported export header was used.
     foreach ($keys as $key) {
         if (isset($row[$key]) && trim((string)$row[$key]) !== '') {
             return trim((string)$row[$key]);
@@ -78,6 +82,9 @@ if (!$headers) {
 
 $headers = array_map('clean_key', $headers);
 
+// cdr_records is the source-agnostic diagnostic input model. Add future source
+// fields carefully: normalized columns support rules, while raw_data preserves
+// the original row for evidence review and later mapping improvements.
 $insert = $pdo->prepare("
     INSERT INTO cdr_records (
         batch_id,
@@ -178,6 +185,9 @@ $totalRows = 0;
 $importedRows = 0;
 $failedRows = 0;
 
+// Imports currently commit row-by-row because the transaction is disabled.
+// Production hardening should define retry/idempotency behavior before enabling
+// automatic reruns or changing this partial-import behavior.
 // $pdo->beginTransaction();
 
 try {
@@ -249,6 +259,7 @@ try {
                 ':destination_country' => value($row, ['destination_country']),
                 ':destination_type' => value($row, ['destination_type']),
 
+                // Preserve the normalized-header source row for auditability.
                 ':raw_data' => json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
             ]);
 

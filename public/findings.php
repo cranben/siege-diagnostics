@@ -153,6 +153,9 @@ $findings = $findingsStmt->fetchAll(PDO::FETCH_ASSOC);
 
 <?php
 
+// A materialized finding represents Scenario -> Pattern -> Evidence. The link
+// table below completes the workflow by projecting that evidence into concrete
+// Call Details that a developer or operator can inspect.
 $evidence = json_decode($finding['evidence'], true);
 
 $callsStmt = $pdo->prepare("

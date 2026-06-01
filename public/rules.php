@@ -15,6 +15,9 @@ function e($value): string {
 // ENABLE / DISABLE RULE ACTION
 // ======================================================
 
+// Rules are operationally tunable without changing analysis code. In production,
+// protect this mutation path with the same authorization and request-safety
+// controls used for other administrative actions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ruleId = isset($_POST['rule_id']) ? (int)$_POST['rule_id'] : 0;
     $enabled = isset($_POST['enabled']) && $_POST['enabled'] === '1' ? 'true' : 'false';
@@ -41,6 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // LOAD RULES
 // ======================================================
 
+// Conditions describe the Pattern and evidence_template describes the human
+// explanation later copied into a finding. Both are JSON-backed rule contracts.
 $rules = $pdo->query("
     SELECT
         id,

@@ -9,6 +9,9 @@ if ($batchId <= 0) {
     exit('Invalid batch ID.');
 }
 
+// Analysis is exposed as an explicit batch action after import. The CLI script
+// replaces that batch's materialized findings, so refreshes intentionally rerun
+// analysis rather than appending another set of findings.
 $cmd = sprintf(
     'php %s %d 2>&1',
     escapeshellarg('/var/www/siege-diagnostics/scripts/analyze_batch.php'),

@@ -10,6 +10,8 @@ $batches = $pdo->query("
     LIMIT 10
 ")->fetchAll(PDO::FETCH_ASSOC);
 
+// These summaries are currently system-wide, not scoped to the selected batch.
+// Keep that distinction visible if this page later grows batch-specific views.
 $statusCounts = $pdo->query("
     SELECT COALESCE(call_status, 'unknown') AS call_status, COUNT(*) AS total
     FROM cdr_records

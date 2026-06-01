@@ -9,6 +9,9 @@ if ($batchId <= 0) {
     exit('Invalid batch ID.');
 }
 
+// The web layer currently delegates to the same CLI importer used for manual
+// operations. This keeps one import path, but it is synchronous and uses a
+// deployment-specific path; treat both as production safety concerns.
 $cmd = sprintf(
     'php %s %d 2>&1',
     escapeshellarg('/var/www/siege-diagnostics/scripts/import_csv.php'),
