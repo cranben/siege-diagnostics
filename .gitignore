@@ -22,3 +22,7 @@ cache/
 *.ppk
 id_rsa
 id_ed25519
+
+!database/
+!database/migrations/
+!database/migrations/*.sql
