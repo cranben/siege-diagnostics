@@ -18,6 +18,10 @@ function upload_error_message(int $error): string {
     };
 }
 
+function json_for_db($value): string {
+    return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+}
+
 $inspection = null;
 $fatalError = null;
 $originalName = null;
@@ -40,6 +44,59 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         try {
             $inspector = new BundleInspector();
             $inspection = $inspector->inspect($file['tmp_name']);
+
+            $pdo = require __DIR__ . '/../app/db.php';
+            $status = count($inspection['errors']) > 0 ? 'inspected_with_errors' : 'inspected';
+
+            $stmt = $pdo->prepare("
+                INSERT INTO diagnostics_bundle_imports (
+                    original_filename,
+                    collection_id,
+                    generated_at,
+                    collector_version,
+                    schema_version,
+                    manifest_json,
+                    collector_json,
+                    sections_json,
+                    warnings_json,
+                    errors_json,
+                    status,
+                    imported_at
+                ) VALUES (
+                    :original_filename,
+                    :collection_id,
+                    :generated_at,
+                    :collector_version,
+                    :schema_version,
+                    :manifest_json,
+                    :collector_json,
+                    :sections_json,
+                    :warnings_json,
+                    :errors_json,
+                    :status,
+                    now()
+                )
+                RETURNING id
+            ");
+
+            $stmt->execute([
+                ':original_filename' => $originalName,
+                ':collection_id' => $inspection['collection_id'],
+                ':generated_at' => $inspection['generated_at'],
+                ':collector_version' => $inspection['collector_version'],
+                ':schema_version' => $inspection['schema_version'],
+                ':manifest_json' => $inspection['manifest_json'] === null ? null : json_for_db($inspection['manifest_json']),
+                ':collector_json' => $inspection['collector_json'] === null ? null : json_for_db($inspection['collector_json']),
+                ':sections_json' => json_for_db($inspection['sections_json']),
+                ':warnings_json' => json_for_db($inspection['warnings']),
+                ':errors_json' => json_for_db($inspection['errors']),
+                ':status' => $status,
+            ]);
+
+            $bundleId = $stmt->fetchColumn();
+
+            header('Location: /bundle_import.php?id=' . urlencode((string)$bundleId));
+            exit;
         } catch (Throwable $e) {
             $fatalError = $e->getMessage();
         }
@@ -51,91 +108,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Siege Diagnostics - Bundle Inspection</title>
+    <title>Siege Diagnostics - Bundle Upload</title>
     <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
 
 <?php include __DIR__ . '/../app/nav.php'; ?>
 
-<h1>Diagnostics Bundle Inspection</h1>
+<h1>Diagnostics Bundle Upload</h1>
 
 <?php if ($fatalError): ?>
     <p><strong>Error:</strong> <?= e($fatalError) ?></p>
     <p><a href="/">Back to Upload</a></p>
-<?php elseif ($inspection): ?>
-    <p>Original file: <?= e($originalName) ?></p>
-
-    <h2>Bundle Metadata</h2>
-    <table>
-        <tr>
-            <th>Collection ID</th>
-            <td><?= e($inspection['collection_id'] ?? 'Not found') ?></td>
-        </tr>
-        <tr>
-            <th>Generated At</th>
-            <td><?= e($inspection['generated_at'] ?? 'Not found') ?></td>
-        </tr>
-        <tr>
-            <th>Collector Version</th>
-            <td><?= e($inspection['collector_version'] ?? 'Not found') ?></td>
-        </tr>
-        <tr>
-            <th>Schema Version</th>
-            <td><?= e($inspection['schema_version'] ?? 'Not found') ?></td>
-        </tr>
-    </table>
-
-    <h2>Sections Found</h2>
-    <table>
-        <tr>
-            <th>Section</th>
-            <th>File</th>
-            <th>Status</th>
-            <th>Record Count</th>
-            <th>Warnings</th>
-            <th>Errors</th>
-        </tr>
-        <?php if (count($inspection['sections']) === 0): ?>
-            <tr>
-                <td colspan="6">No section JSON files found.</td>
-            </tr>
-        <?php endif; ?>
-        <?php foreach ($inspection['sections'] as $section): ?>
-            <tr>
-                <td><?= e($section['name']) ?></td>
-                <td><?= e($section['file']) ?></td>
-                <td><?= e($section['status']) ?></td>
-                <td><?= e($section['record_count'] ?? 'Not reported') ?></td>
-                <td><?= e(implode('; ', $section['warnings'])) ?></td>
-                <td><?= e(implode('; ', $section['errors'])) ?></td>
-            </tr>
-        <?php endforeach; ?>
-    </table>
-
-    <h2>Bundle Warnings</h2>
-    <?php if (count($inspection['warnings']) === 0): ?>
-        <p>None.</p>
-    <?php else: ?>
-        <ul>
-            <?php foreach ($inspection['warnings'] as $warning): ?>
-                <li><?= e($warning) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-
-    <h2>Bundle Errors</h2>
-    <?php if (count($inspection['errors']) === 0): ?>
-        <p>None.</p>
-    <?php else: ?>
-        <ul>
-            <?php foreach ($inspection['errors'] as $error): ?>
-                <li><?= e($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-
-    <p><a href="/">Inspect another bundle</a></p>
 <?php endif; ?>
 
 </body>

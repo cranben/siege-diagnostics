@@ -186,6 +186,21 @@ $requiredTables = [
         'raw_data',
         'created_at',
     ],
+    'diagnostics_bundle_imports' => [
+        'id',
+        'original_filename',
+        'collection_id',
+        'generated_at',
+        'collector_version',
+        'schema_version',
+        'manifest_json',
+        'collector_json',
+        'sections_json',
+        'warnings_json',
+        'errors_json',
+        'status',
+        'imported_at',
+    ],
     'diagnostic_rules' => [
         'id',
         'rule_key',
@@ -260,6 +275,8 @@ $requiredIndexes = [
     'idx_fusionpbx_domains_status',
     'idx_cdr_import_batches_fusionpbx_source_id',
     'idx_cdr_import_batch_domains_domain_id',
+    'idx_diagnostics_bundle_imports_imported_at',
+    'idx_diagnostics_bundle_imports_collection_id',
 ];
 
 $requiredForeignKeys = [

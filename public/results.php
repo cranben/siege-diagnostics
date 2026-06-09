@@ -10,6 +10,14 @@ $batches = $pdo->query("
     LIMIT 10
 ")->fetchAll(PDO::FETCH_ASSOC);
 
+$bundleImports = $pdo->query("
+    SELECT id, original_filename, collection_id, generated_at, collector_version,
+           schema_version, status, imported_at
+    FROM diagnostics_bundle_imports
+    ORDER BY imported_at DESC, id DESC
+    LIMIT 10
+")->fetchAll(PDO::FETCH_ASSOC);
+
 // These summaries are currently system-wide, not scoped to the selected batch.
 // Keep that distinction visible if this page later grows batch-specific views.
 $statusCounts = $pdo->query("
@@ -60,10 +68,43 @@ function e($value): string {
     <a href="/results.php">Results</a>
 </div>
 
+<h3>Diagnostics Bundle Imports</h3>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Original File</th>
+        <th>Collection ID</th>
+        <th>Generated At</th>
+        <th>Collector Version</th>
+        <th>Schema Version</th>
+        <th>Status</th>
+        <th>Imported At</th>
+        <th>View</th>
+    </tr>
+    <?php if (count($bundleImports) === 0): ?>
+        <tr>
+            <td colspan="9">No diagnostics bundle imports yet.</td>
+        </tr>
+    <?php endif; ?>
+    <?php foreach ($bundleImports as $bundle): ?>
+        <tr>
+            <td><?= e($bundle['id']) ?></td>
+            <td><?= e($bundle['original_filename']) ?></td>
+            <td><?= e($bundle['collection_id']) ?></td>
+            <td><?= e($bundle['generated_at']) ?></td>
+            <td><?= e($bundle['collector_version']) ?></td>
+            <td><?= e($bundle['schema_version']) ?></td>
+            <td><?= e($bundle['status']) ?></td>
+            <td><?= e($bundle['imported_at']) ?></td>
+            <td><a href="/bundle_import.php?id=<?= e($bundle['id']) ?>">View</a></td>
+        </tr>
+    <?php endforeach; ?>
+</table>
+
 
 <!-- Batch Table Header -->
 
-<h3>Recent Import Batches</h3>
+<h3>Recent CDR Import Batches</h3>
 <table>
     <tr>
         <th>ID</th>

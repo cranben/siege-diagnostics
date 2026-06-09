@@ -22,6 +22,9 @@ class BundleInspector
             'generated_at' => null,
             'collector_version' => null,
             'schema_version' => null,
+            'manifest_json' => null,
+            'collector_json' => null,
+            'sections_json' => [],
             'sections' => [],
             'warnings' => [],
             'errors' => [],
@@ -32,6 +35,7 @@ class BundleInspector
             $collector = $this->readJsonEntry($zip, 'collector.json', $result);
 
             if (is_array($manifest)) {
+                $result['manifest_json'] = $manifest;
                 $result['collection_id'] = $this->stringValue($manifest, ['collection_id', 'id']);
                 $result['generated_at'] = $this->stringValue($manifest, ['generated_at', 'created_at']);
                 $result['collector_version'] = $this->stringValue($manifest, ['collector_version']);
@@ -39,6 +43,7 @@ class BundleInspector
             }
 
             if (is_array($collector)) {
+                $result['collector_json'] = $collector;
                 $result['collector_version'] = $result['collector_version']
                     ?? $this->stringValue($collector, ['collector_version', 'version']);
                 $result['schema_version'] = $result['schema_version']
@@ -68,6 +73,11 @@ class BundleInspector
                 if (!is_array($section)) {
                     continue;
                 }
+
+                $result['sections_json'][] = [
+                    'file' => $normalizedName,
+                    'data' => $section,
+                ];
 
                 $result['sections'][] = [
                     'file' => $normalizedName,
