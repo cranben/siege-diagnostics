@@ -67,13 +67,23 @@ function index_exists(PDO $pdo, string $index): bool
     return (bool)$stmt->fetchColumn();
 }
 
-function cascade_foreign_key_exists(
+function foreign_key_delete_action_exists(
     PDO $pdo,
     string $table,
     string $column,
     string $referencedTable,
-    string $referencedColumn
+    string $referencedColumn,
+    string $deleteAction
 ): bool {
+    $deleteActionCodes = [
+        'CASCADE' => 'c',
+        'RESTRICT' => 'r',
+    ];
+
+    if (!isset($deleteActionCodes[$deleteAction])) {
+        throw new InvalidArgumentException("Unsupported foreign key delete action: {$deleteAction}");
+    }
+
     $stmt = $pdo->prepare("
         SELECT EXISTS (
             SELECT 1
@@ -96,7 +106,7 @@ function cascade_foreign_key_exists(
               AND column_row.attname = :column_name
               AND referenced_table_row.relname = :referenced_table_name
               AND referenced_column_row.attname = :referenced_column_name
-              AND constraint_row.confdeltype = 'c'
+              AND constraint_row.confdeltype = :delete_action_code
         )
     ");
 
@@ -105,6 +115,7 @@ function cascade_foreign_key_exists(
         ':column_name' => $column,
         ':referenced_table_name' => $referencedTable,
         ':referenced_column_name' => $referencedColumn,
+        ':delete_action_code' => $deleteActionCodes[$deleteAction],
     ]);
 
     return (bool)$stmt->fetchColumn();
@@ -124,6 +135,7 @@ $requiredTables = [
         'failed_rows',
         'uploaded_at',
         'imported_at',
+        'fusionpbx_source_id',
     ],
     'cdr_records' => [
         'id',
@@ -207,6 +219,28 @@ $requiredTables = [
         'finding_id',
         'cdr_record_id',
     ],
+    'fusionpbx_sources' => [
+        'id',
+        'source_key',
+        'source_label',
+        'config_key',
+        'status',
+        'created_at',
+        'updated_at',
+    ],
+    'fusionpbx_domains' => [
+        'id',
+        'fusionpbx_source_id',
+        'domain_uuid',
+        'domain_name',
+        'status',
+        'created_at',
+        'updated_at',
+    ],
+    'cdr_import_batch_domains' => [
+        'batch_id',
+        'fusionpbx_domain_id',
+    ],
 ];
 
 $requiredIndexes = [
@@ -221,13 +255,22 @@ $requiredIndexes = [
     'idx_diagnostic_rules_enabled_priority',
     'idx_diagnostic_findings_batch_priority',
     'idx_diagnostic_finding_calls_cdr_record_id',
+    'idx_fusionpbx_sources_status',
+    'idx_fusionpbx_domains_source_id',
+    'idx_fusionpbx_domains_status',
+    'idx_cdr_import_batches_fusionpbx_source_id',
+    'idx_cdr_import_batch_domains_domain_id',
 ];
 
-$requiredCascadeForeignKeys = [
-    ['cdr_records', 'batch_id', 'cdr_import_batches', 'id'],
-    ['diagnostic_findings', 'batch_id', 'cdr_import_batches', 'id'],
-    ['diagnostic_finding_calls', 'finding_id', 'diagnostic_findings', 'id'],
-    ['diagnostic_finding_calls', 'cdr_record_id', 'cdr_records', 'id'],
+$requiredForeignKeys = [
+    ['cdr_records', 'batch_id', 'cdr_import_batches', 'id', 'CASCADE'],
+    ['diagnostic_findings', 'batch_id', 'cdr_import_batches', 'id', 'CASCADE'],
+    ['diagnostic_finding_calls', 'finding_id', 'diagnostic_findings', 'id', 'CASCADE'],
+    ['diagnostic_finding_calls', 'cdr_record_id', 'cdr_records', 'id', 'CASCADE'],
+    ['fusionpbx_domains', 'fusionpbx_source_id', 'fusionpbx_sources', 'id', 'RESTRICT'],
+    ['cdr_import_batches', 'fusionpbx_source_id', 'fusionpbx_sources', 'id', 'RESTRICT'],
+    ['cdr_import_batch_domains', 'batch_id', 'cdr_import_batches', 'id', 'CASCADE'],
+    ['cdr_import_batch_domains', 'fusionpbx_domain_id', 'fusionpbx_domains', 'id', 'RESTRICT'],
 ];
 
 echo "Siege Diagnostics database check\n";
@@ -271,14 +314,21 @@ foreach ($requiredIndexes as $index) {
     $allPassed = report_check("Index {$index}", index_exists($pdo, $index)) && $allPassed;
 }
 
-echo "\nRequired cascade foreign keys\n";
-echo "-----------------------------\n";
+echo "\nRequired foreign key delete behavior\n";
+echo "------------------------------------\n";
 
-foreach ($requiredCascadeForeignKeys as [$table, $column, $referencedTable, $referencedColumn]) {
-    $label = "Cascade {$table}.{$column} -> {$referencedTable}.{$referencedColumn}";
+foreach ($requiredForeignKeys as [$table, $column, $referencedTable, $referencedColumn, $deleteAction]) {
+    $label = "{$deleteAction} {$table}.{$column} -> {$referencedTable}.{$referencedColumn}";
     $allPassed = report_check(
         $label,
-        cascade_foreign_key_exists($pdo, $table, $column, $referencedTable, $referencedColumn)
+        foreign_key_delete_action_exists(
+            $pdo,
+            $table,
+            $column,
+            $referencedTable,
+            $referencedColumn,
+            $deleteAction
+        )
     ) && $allPassed;
 }
 
