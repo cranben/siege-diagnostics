@@ -44,5 +44,28 @@ include __DIR__ . '/../app/nav.php';
 
 </form>
 
+<h2>Diagnostics Bundle Inspection</h2>
+
+<form method="post" action="inspect_bundle.php" enctype="multipart/form-data">
+
+    <label>Select FusionPBX Diagnostics ZIP bundle:</label>
+
+    <br><br>
+
+    <input
+        type="file"
+        name="bundle_zip"
+        accept=".zip,application/zip"
+        required
+    >
+
+    <br><br>
+
+    <button type="submit">
+        Inspect Bundle
+    </button>
+
+</form>
+
 </body>
 </html>
