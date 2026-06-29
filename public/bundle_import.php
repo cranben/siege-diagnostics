@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../app/bundle_cdr_helpers.php';
+require_once __DIR__ . '/../app/BundleCdrAnalyzer.php';
 
 function e($value): string
 {
@@ -10,6 +11,21 @@ function e($value): string
 function display_value(?string $value): string
 {
     return $value ?? 'Not reported';
+}
+
+function display_count_map(array $counts): string
+{
+    if (count($counts) === 0) {
+        return 'None';
+    }
+
+    $parts = [];
+
+    foreach ($counts as $label => $count) {
+        $parts[] = $label . ': ' . $count;
+    }
+
+    return implode(', ', $parts);
 }
 
 $bundleId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -48,6 +64,12 @@ $selectedCallCount = count($selectedCalls);
 $selectedCallIndexCount = is_array($cdrSelectedCallIndex) ? bundle_count_like($cdrSelectedCallIndex) : null;
 $selectedCallTableLimit = 25;
 $visibleSelectedCalls = array_slice($selectedCalls, 0, $selectedCallTableLimit);
+$cdrEvidenceSummary = null;
+
+if (is_array($cdrSelectedCalls)) {
+    $cdrAnalyzer = new BundleCdrAnalyzer();
+    $cdrEvidenceSummary = $cdrAnalyzer->analyze($cdrSelectedCalls);
+}
 
 $collectionPolicySummary = is_array($cdrCollectionPolicy)
     ? bundle_collection_policy_summary($cdrCollectionPolicy)
@@ -200,6 +222,82 @@ $summaryColumns = [
             </tr>
         <?php endforeach; ?>
     </table>
+
+    <h3>CDR Evidence Summary</h3>
+    <?php if ($cdrEvidenceSummary === null): ?>
+        <p>No selected call summary is available for this bundle.</p>
+    <?php else: ?>
+        <table>
+            <tr>
+                <th>Selected Calls Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['selected_calls_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Answered Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['answered_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Failed Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['failed_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Missed / No-Answer Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['missed_no_answer_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Status Known Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['status_known_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Short Answered Calls Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['short_answered_calls_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Duration Known Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['duration_known_count']) ?></td>
+            </tr>
+            <tr>
+                <th>send_bye Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['send_bye_count']) ?></td>
+            </tr>
+            <tr>
+                <th>recv_bye Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['recv_bye_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Disposition Known Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['disposition_known_count']) ?></td>
+            </tr>
+            <tr>
+                <th>MOS Samples</th>
+                <td><?= e((string)$cdrEvidenceSummary['mos_sample_count']) ?></td>
+            </tr>
+            <tr>
+                <th>Average MOS</th>
+                <td><?= e(display_value($cdrEvidenceSummary['mos_average'] !== null ? (string)$cdrEvidenceSummary['mos_average'] : null)) ?></td>
+            </tr>
+            <tr>
+                <th>Minimum MOS</th>
+                <td><?= e(display_value($cdrEvidenceSummary['mos_minimum'] !== null ? (string)$cdrEvidenceSummary['mos_minimum'] : null)) ?></td>
+            </tr>
+            <tr>
+                <th>Recording State Counts</th>
+                <td><?= e(display_count_map($cdrEvidenceSummary['recording_state_counts'])) ?></td>
+            </tr>
+            <tr>
+                <th>Transcript State Counts</th>
+                <td><?= e(display_count_map($cdrEvidenceSummary['transcript_state_counts'])) ?></td>
+            </tr>
+            <tr>
+                <th>Call Flow Counts</th>
+                <td><?= e(display_count_map($cdrEvidenceSummary['call_flow_counts'])) ?></td>
+            </tr>
+            <tr>
+                <th>Call Flow Known Count</th>
+                <td><?= e((string)$cdrEvidenceSummary['flow_known_count']) ?></td>
+            </tr>
+        </table>
+    <?php endif; ?>
 
     <h3>Selected Calls</h3>
     <?php if ($selectedCallCount === 0): ?>
