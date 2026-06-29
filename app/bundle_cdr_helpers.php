@@ -322,3 +322,139 @@ function bundle_safe_call(array $calls, int $index): ?array
 
     return $calls[$index];
 }
+
+function bundle_boolish($value): ?bool
+{
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    if (is_numeric($value)) {
+        return ((int)$value) !== 0;
+    }
+
+    if (!is_string($value)) {
+        return null;
+    }
+
+    $normalized = strtolower(trim($value));
+
+    if ($normalized === '') {
+        return null;
+    }
+
+    if (in_array($normalized, ['1', 'true', 'yes', 'y', 'present', 'requested'], true)) {
+        return true;
+    }
+
+    if (in_array($normalized, ['0', 'false', 'no', 'n', 'missing', 'not_requested'], true)) {
+        return false;
+    }
+
+    return null;
+}
+
+function bundle_call_flow_state(array $call): string
+{
+    $present = bundle_boolish(bundle_call_value($call, [
+        ['v_xml_cdr_flow', 'present'],
+    ]));
+
+    return $present ? 'Present' : 'Not available';
+}
+
+function bundle_recording_state(array $call): ?string
+{
+    return bundle_call_display_value($call, [
+        ['recording_metadata', 'availability_state'],
+    ]);
+}
+
+function bundle_transcript_state(array $call): string
+{
+    $requested = bundle_boolish(bundle_call_value($call, [
+        ['transcript_metadata', 'requested'],
+    ]));
+
+    if ($requested === false) {
+        return 'Not requested';
+    }
+
+    $queueStatus = bundle_call_display_value($call, [
+        ['transcript_metadata', 'queue_status'],
+    ]);
+
+    if ($queueStatus !== null) {
+        return $queueStatus;
+    }
+
+    return 'Requested';
+}
+
+function bundle_policy_list(array $policy, string $key): array
+{
+    if (!isset($policy[$key]) || !is_array($policy[$key])) {
+        return [];
+    }
+
+    $values = [];
+
+    foreach ($policy[$key] as $item) {
+        if (!is_scalar($item)) {
+            continue;
+        }
+
+        $string = trim((string)$item);
+        if ($string !== '') {
+            $values[] = $string;
+        }
+    }
+
+    return $values;
+}
+
+function bundle_policy_contains(array $policy, string $key, array $candidates): bool
+{
+    $values = bundle_policy_list($policy, $key);
+
+    if (count($values) === 0) {
+        return false;
+    }
+
+    $normalizedValues = array_map('bundle_normalize_section_key', $values);
+
+    foreach ($candidates as $candidate) {
+        if (in_array(bundle_normalize_section_key($candidate), $normalizedValues, true)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function bundle_policy_excluded_label(array $policy, array $candidates): string
+{
+    return bundle_policy_contains($policy, 'excluded', $candidates) ? 'Yes' : 'No';
+}
+
+function bundle_collection_policy_summary(array $policy): ?string
+{
+    $parts = [];
+
+    $phase = bundle_string_value($policy, ['phase']);
+    if ($phase !== null) {
+        $parts[] = 'Phase: ' . $phase;
+    }
+
+    $included = bundle_policy_list($policy, 'included');
+    if (count($included) > 0) {
+        $parts[] = 'Included: ' . implode(', ', $included);
+    }
+
+    $excluded = bundle_policy_list($policy, 'excluded');
+    if (count($excluded) > 0) {
+        $parts[] = 'Excluded: ' . implode(', ', $excluded);
+    }
+
+    return count($parts) > 0 ? implode(' | ', $parts) : null;
+}

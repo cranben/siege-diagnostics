@@ -50,73 +50,15 @@ $selectedCallTableLimit = 25;
 $visibleSelectedCalls = array_slice($selectedCalls, 0, $selectedCallTableLimit);
 
 $collectionPolicySummary = is_array($cdrCollectionPolicy)
-    ? bundle_call_display_value($cdrCollectionPolicy, [
-        ['summary'],
-        ['policy_summary'],
-        ['collection_policy_summary'],
-        ['description'],
-        ['name'],
-        ['policy'],
-        ['mode'],
-    ])
+    ? bundle_collection_policy_summary($cdrCollectionPolicy)
     : null;
 
 $exclusionRows = [
-    'Raw CDR Body' => [
-        'exclude' => [
-            ['exclude_raw_cdr_body'],
-            ['excludes', 'raw_cdr_body'],
-            ['excluded_content', 'raw_cdr_body'],
-            ['content', 'raw_cdr_body', 'excluded'],
-        ],
-        'include' => [
-            ['include_raw_cdr_body'],
-        ],
-    ],
-    'CDR Logs' => [
-        'exclude' => [
-            ['exclude_cdr_logs'],
-            ['excludes', 'cdr_logs'],
-            ['excluded_content', 'cdr_logs'],
-            ['content', 'cdr_logs', 'excluded'],
-        ],
-        'include' => [
-            ['include_cdr_logs'],
-        ],
-    ],
-    'Recording Audio' => [
-        'exclude' => [
-            ['exclude_recording_audio'],
-            ['excludes', 'recording_audio'],
-            ['excluded_content', 'recording_audio'],
-            ['content', 'recording_audio', 'excluded'],
-        ],
-        'include' => [
-            ['include_recording_audio'],
-        ],
-    ],
-    'Transcript Body' => [
-        'exclude' => [
-            ['exclude_transcript_body'],
-            ['excludes', 'transcript_body'],
-            ['excluded_content', 'transcript_body'],
-            ['content', 'transcript_body', 'excluded'],
-        ],
-        'include' => [
-            ['include_transcript_body'],
-        ],
-    ],
-    'Transcript Summary Text' => [
-        'exclude' => [
-            ['exclude_transcript_summary_text'],
-            ['excludes', 'transcript_summary_text'],
-            ['excluded_content', 'transcript_summary_text'],
-            ['content', 'transcript_summary_text', 'excluded'],
-        ],
-        'include' => [
-            ['include_transcript_summary_text'],
-        ],
-    ],
+    'Raw CDR Body Excluded' => ['raw_cdr_body', 'raw_cdr', 'cdr_body'],
+    'CDR Logs Excluded' => ['cdr_logs', 'cdr_log_body', 'cdr_log_bodies'],
+    'Recording Audio Excluded' => ['recording_audio', 'audio_recording', 'recording_body'],
+    'Transcript Body Excluded' => ['transcript_body', 'transcript_text', 'transcript'],
+    'Transcript Summary Text Excluded' => ['transcript_summary_text', 'transcript_summary'],
 ];
 
 $summaryColumns = [
@@ -146,6 +88,7 @@ $summaryColumns = [
         ['duration'],
     ],
     'Status' => [
+        ['v_xml_cdr', 'status'],
         ['v_xml_cdr', 'call_status'],
         ['status'],
         ['call_status'],
@@ -165,23 +108,22 @@ $summaryColumns = [
     ],
     'MOS' => [
         ['v_xml_cdr', 'rtp_audio_in_mos'],
+        ['v_xml_cdr', 'mos'],
         ['mos'],
     ],
     'Codecs' => [
         ['v_xml_cdr', 'read_codec'],
+        ['v_xml_cdr', 'write_codec'],
         ['codecs'],
     ],
     'Recording State' => [
-        ['recording_state'],
-        ['recording', 'state'],
+        ['recording_metadata', 'availability_state'],
     ],
     'Transcript State' => [
-        ['transcript_state'],
-        ['transcript', 'state'],
+        ['transcript_metadata', 'queue_status'],
     ],
     'Call Flow' => [
-        ['call_flow'],
-        ['routing', 'call_flow'],
+        ['v_xml_cdr_flow', 'present'],
     ],
 ];
 
@@ -246,15 +188,15 @@ $summaryColumns = [
                 <?php endif; ?>
             </td>
         </tr>
-        <?php foreach ($exclusionRows as $label => $config): ?>
+        <?php foreach ($exclusionRows as $label => $candidates): ?>
             <?php
                 $status = is_array($cdrCollectionPolicy)
-                    ? bundle_exclusion_status_from_paths($cdrCollectionPolicy, $config['exclude'], $config['include'])
-                    : null;
+                    ? bundle_policy_excluded_label($cdrCollectionPolicy, $candidates)
+                    : 'No';
             ?>
             <tr>
                 <th><?= e($label) ?></th>
-                <td><?= e($status ?? 'Not reported') ?></td>
+                <td><?= e($status) ?></td>
             </tr>
         <?php endforeach; ?>
     </table>
@@ -279,10 +221,28 @@ $summaryColumns = [
                         <?php
                             $display = bundle_call_display_value($call, $paths);
 
+                            if ($columnLabel === 'Call Flow') {
+                                $display = bundle_call_flow_state($call);
+                            }
+
+                            if ($columnLabel === 'Recording State') {
+                                $display = bundle_recording_state($call);
+                            }
+
+                            if ($columnLabel === 'Transcript State') {
+                                $display = bundle_transcript_state($call);
+                            }
+
                             if ($columnLabel === 'Codecs' && $display !== null) {
+                                $readCodec = bundle_call_display_value($call, [['v_xml_cdr', 'read_codec']]);
                                 $writeCodec = bundle_call_display_value($call, [['v_xml_cdr', 'write_codec']]);
-                                if ($writeCodec !== null && stripos($display, $writeCodec) === false) {
-                                    $display .= ' / ' . $writeCodec;
+
+                                if ($readCodec !== null && $writeCodec !== null) {
+                                    $display = $readCodec === $writeCodec ? $readCodec : $readCodec . ' / ' . $writeCodec;
+                                } elseif ($readCodec !== null) {
+                                    $display = $readCodec;
+                                } elseif ($writeCodec !== null) {
+                                    $display = $writeCodec;
                                 }
                             }
                         ?>
