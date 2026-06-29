@@ -421,15 +421,115 @@ function bundle_policy_contains(array $policy, string $key, array $candidates): 
         return false;
     }
 
-    $normalizedValues = array_map('bundle_normalize_section_key', $values);
+    foreach ($values as $value) {
+        $normalizedValue = bundle_normalize_section_key($value);
 
-    foreach ($candidates as $candidate) {
-        if (in_array(bundle_normalize_section_key($candidate), $normalizedValues, true)) {
+        foreach ($candidates as $candidate) {
+            if (bundle_policy_value_matches_candidate($normalizedValue, $candidate)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function bundle_policy_value_matches_candidate(string $normalizedValue, string $candidate): bool
+{
+    $normalizedCandidate = bundle_normalize_section_key($candidate);
+
+    if ($normalizedValue === $normalizedCandidate) {
+        return true;
+    }
+
+    $tokenGroups = [
+        'raw_cdr_body' => [
+            ['raw', 'xml'],
+            ['raw', 'json'],
+            ['raw', 'cdr', 'body'],
+        ],
+        'raw_cdr' => [
+            ['raw', 'xml'],
+            ['raw', 'json'],
+            ['raw', 'cdr'],
+        ],
+        'cdr_body' => [
+            ['cdr', 'body'],
+            ['raw', 'cdr', 'body'],
+        ],
+        'cdr_logs' => [
+            ['cdr', 'log'],
+            ['cdr', 'logs'],
+            ['cdr', 'log', 'content'],
+        ],
+        'cdr_log_body' => [
+            ['cdr', 'log'],
+            ['cdr', 'log', 'content'],
+        ],
+        'cdr_log_bodies' => [
+            ['cdr', 'logs'],
+            ['cdr', 'log', 'content'],
+        ],
+        'transcript_body' => [
+            ['transcript', 'json', 'body'],
+            ['transcript', 'body'],
+            ['transcript', 'text'],
+        ],
+        'transcript_text' => [
+            ['transcript', 'text'],
+            ['transcript', 'body'],
+            ['transcript', 'json', 'body'],
+        ],
+        'transcript' => [
+            ['transcript', 'body'],
+            ['transcript', 'text'],
+            ['transcript', 'json', 'body'],
+        ],
+        'transcript_summary_text' => [
+            ['transcript', 'summary', 'text'],
+            ['transcript', 'summary'],
+        ],
+        'transcript_summary' => [
+            ['transcript', 'summary'],
+            ['transcript', 'summary', 'text'],
+        ],
+        'recording_audio' => [
+            ['recording', 'audio'],
+            ['waveform', 'output'],
+            ['call', 'recording', 'base64'],
+        ],
+        'audio_recording' => [
+            ['recording', 'audio'],
+            ['call', 'recording'],
+        ],
+        'recording_body' => [
+            ['recording', 'audio'],
+            ['call', 'recording', 'base64'],
+        ],
+    ];
+
+    if (!isset($tokenGroups[$normalizedCandidate])) {
+        return false;
+    }
+
+    foreach ($tokenGroups[$normalizedCandidate] as $tokens) {
+        if (bundle_policy_value_has_tokens($normalizedValue, $tokens)) {
             return true;
         }
     }
 
     return false;
+}
+
+function bundle_policy_value_has_tokens(string $normalizedValue, array $tokens): bool
+{
+    foreach ($tokens as $token) {
+        if (!str_contains($normalizedValue, $token)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function bundle_policy_excluded_label(array $policy, array $candidates): string
