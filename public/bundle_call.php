@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../app/bundle_cdr_helpers.php';
+require_once __DIR__ . '/../app/BundleCdrAnalyzer.php';
 
 function e($value): string
 {
@@ -91,6 +92,9 @@ if ($call === null) {
     exit('Selected call evidence not found for that call index.');
 }
 
+$cdrAnalyzer = new BundleCdrAnalyzer();
+$callAnalysis = $cdrAnalyzer->analyzeCall($call, $callIndex);
+
 $recordingMetadataSource = isset($call['recording_metadata']) && is_array($call['recording_metadata'])
     ? $call['recording_metadata']
     : null;
@@ -100,6 +104,77 @@ $transcriptMetadataSource = isset($call['transcript_metadata']) && is_array($cal
 $callFlowSource = isset($call['v_xml_cdr_flow']) && is_array($call['v_xml_cdr_flow'])
     ? $call['v_xml_cdr_flow']
     : null;
+
+$atAGlance = display_metadata_rows([
+    'Start Time' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'start_stamp'],
+            ['v_xml_cdr', 'start_epoch'],
+            ['start_time'],
+            ['start_stamp'],
+        ]),
+    ],
+    'Direction' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'direction'],
+            ['direction'],
+        ]),
+    ],
+    'Caller' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'caller_id_number'],
+            ['v_xml_cdr', 'caller_id_name'],
+            ['caller'],
+            ['caller_id_number'],
+        ]),
+    ],
+    'Destination' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'destination_number'],
+            ['destination'],
+            ['destination_number'],
+        ]),
+    ],
+    'Status' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'status'],
+            ['v_xml_cdr', 'call_status'],
+            ['status'],
+            ['call_status'],
+        ]),
+    ],
+    'Duration' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'billsec'],
+            ['v_xml_cdr', 'duration'],
+            ['billsec'],
+            ['duration'],
+        ]),
+    ],
+    'SIP Disposition' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'sip_hangup_disposition'],
+            ['sip_disposition'],
+            ['sip_hangup_disposition'],
+        ]),
+    ],
+    'MOS' => [
+        'value' => bundle_call_value($call, [
+            ['v_xml_cdr', 'rtp_audio_in_mos'],
+            ['v_xml_cdr', 'mos'],
+            ['mos'],
+        ]),
+    ],
+    'Recording State' => [
+        'value' => bundle_recording_state($call),
+    ],
+    'Transcript State' => [
+        'value' => bundle_transcript_state($call),
+    ],
+    'Call Flow State' => [
+        'value' => bundle_call_flow_state($call),
+    ],
+]);
 
 $callSummary = display_rows([
     'Call Index' => $callIndex,
@@ -391,6 +466,40 @@ $failedImportMetadata = display_rows([
 <p>Bundle ID: <?= e($bundle['id']) ?></p>
 <p>Original file: <?= e($bundle['original_filename']) ?></p>
 <p>Collection ID: <?= e($bundle['collection_id'] ?? 'Not found') ?></p>
+
+<h2>At a Glance</h2>
+<table>
+    <?php foreach ($atAGlance as $label => $value): ?>
+        <tr>
+            <th><?= e($label) ?></th>
+            <td><?= e($value) ?></td>
+        </tr>
+    <?php endforeach; ?>
+</table>
+
+<h2>Observations</h2>
+<?php if (count($callAnalysis['observations']) === 0): ?>
+    <p>No factual observations were derived from the currently available call evidence.</p>
+<?php else: ?>
+    <?php foreach ($callAnalysis['observations'] as $observation): ?>
+        <details>
+            <summary><?= e($observation['title'] . ' | ' . $observation['confidence'] . ' | ' . $observation['summary']) ?></summary>
+            <?php if (count($observation['evidence']) > 0): ?>
+                <table>
+                    <?php foreach ($observation['evidence'] as $row): ?>
+                        <tr>
+                            <th><?= e($row['label']) ?></th>
+                            <td><?= e($row['value']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            <?php else: ?>
+                <p>No supporting evidence rows were available for this observation.</p>
+            <?php endif; ?>
+            <p><strong>Limitation:</strong> <?= e($observation['limitation']) ?></p>
+        </details>
+    <?php endforeach; ?>
+<?php endif; ?>
 
 <?php
 $sectionsToRender = [
