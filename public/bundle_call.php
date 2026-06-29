@@ -22,6 +22,35 @@ function display_rows(array $rows): array
     return $display;
 }
 
+function display_optional_value($value, string $empty = '-'): string
+{
+    $string = bundle_stringify_value($value);
+    return $string ?? $empty;
+}
+
+function display_metadata_rows(array $rows): array
+{
+    $display = [];
+
+    foreach ($rows as $label => $config) {
+        $value = $config['value'] ?? null;
+        $empty = $config['empty'] ?? '-';
+        $display[$label] = display_optional_value($value, $empty);
+    }
+
+    return $display;
+}
+
+function pretty_json_block($value): ?string
+{
+    if (!is_array($value)) {
+        return null;
+    }
+
+    $json = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    return is_string($json) ? $json : null;
+}
+
 $bundleId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $callIndex = isset($_GET['call']) ? (int)$_GET['call'] : -1;
 
@@ -62,6 +91,16 @@ if ($call === null) {
     exit('Selected call evidence not found for that call index.');
 }
 
+$recordingMetadataSource = isset($call['recording_metadata']) && is_array($call['recording_metadata'])
+    ? $call['recording_metadata']
+    : null;
+$transcriptMetadataSource = isset($call['transcript_metadata']) && is_array($call['transcript_metadata'])
+    ? $call['transcript_metadata']
+    : null;
+$callFlowSource = isset($call['v_xml_cdr_flow']) && is_array($call['v_xml_cdr_flow'])
+    ? $call['v_xml_cdr_flow']
+    : null;
+
 $callSummary = display_rows([
     'Call Index' => $callIndex,
     'Start Time' => bundle_call_value($call, [
@@ -90,6 +129,7 @@ $callSummary = display_rows([
         ['duration'],
     ]),
     'Status' => bundle_call_value($call, [
+        ['v_xml_cdr', 'status'],
         ['v_xml_cdr', 'call_status'],
         ['status'],
         ['call_status'],
@@ -109,6 +149,7 @@ $callSummary = display_rows([
     ]),
     'MOS' => bundle_call_value($call, [
         ['v_xml_cdr', 'rtp_audio_in_mos'],
+        ['v_xml_cdr', 'mos'],
         ['mos'],
     ]),
     'Read Codec' => bundle_call_value($call, [
@@ -158,57 +199,118 @@ $routingAndFlow = display_rows([
         ['v_xml_cdr', 'caller_id_name'],
         ['caller_id_name'],
     ]),
-    'Call Flow' => bundle_call_value($call, [
-        ['call_flow'],
-        ['routing', 'call_flow'],
-    ]),
+    'Call Flow State' => bundle_call_flow_state($call),
 ]);
 
-$recordingMetadata = display_rows([
-    'Recording State' => bundle_call_value($call, [
-        ['recording_state'],
-        ['recording', 'state'],
-    ]),
-    'Recording Exists' => bundle_call_value($call, [
-        ['recording_exists'],
-        ['recording', 'exists'],
-    ]),
-    'Recording Duration' => bundle_call_value($call, [
-        ['recording_duration'],
-        ['recording', 'duration'],
-    ]),
-    'Recording Format' => bundle_call_value($call, [
-        ['recording_format'],
-        ['recording', 'format'],
-    ]),
-    'Recording Filename' => bundle_call_value($call, [
-        ['recording_filename'],
-        ['recording', 'filename'],
-    ]),
-]);
+$recordingMetadata = $recordingMetadataSource === null
+    ? []
+    : display_metadata_rows([
+        'Recording State' => [
+            'value' => $recordingMetadataSource['availability_state'] ?? null,
+        ],
+        'Record Path' => [
+            'value' => $recordingMetadataSource['record_path'] ?? null,
+        ],
+        'Record Name' => [
+            'value' => $recordingMetadataSource['record_name'] ?? null,
+        ],
+        'Record Length' => [
+            'value' => $recordingMetadataSource['record_length'] ?? null,
+        ],
+        'File Exists' => [
+            'value' => $recordingMetadataSource['file_exists'] ?? null,
+        ],
+        'Size Bytes' => [
+            'value' => $recordingMetadataSource['size_bytes'] ?? null,
+        ],
+        'Modified Time' => [
+            'value' => $recordingMetadataSource['mtime'] ?? null,
+        ],
+        'Extension' => [
+            'value' => $recordingMetadataSource['extension'] ?? null,
+        ],
+        'MIME Guess' => [
+            'value' => $recordingMetadataSource['mime_guess'] ?? null,
+        ],
+        'Warnings' => [
+            'value' => $recordingMetadataSource['warnings'] ?? null,
+            'empty' => 'None',
+        ],
+    ]);
 
-$transcriptMetadata = display_rows([
-    'Transcript State' => bundle_call_value($call, [
-        ['transcript_state'],
-        ['transcript', 'state'],
-    ]),
-    'Transcript Exists' => bundle_call_value($call, [
-        ['transcript_exists'],
-        ['transcript', 'exists'],
-    ]),
-    'Transcript Provider' => bundle_call_value($call, [
-        ['transcript_provider'],
-        ['transcript', 'provider'],
-    ]),
-    'Transcript Language' => bundle_call_value($call, [
-        ['transcript_language'],
-        ['transcript', 'language'],
-    ]),
-    'Transcript Segments' => bundle_call_value($call, [
-        ['transcript_segment_count'],
-        ['transcript', 'segment_count'],
-    ]),
-]);
+$transcriptRequested = $transcriptMetadataSource !== null
+    ? bundle_boolish($transcriptMetadataSource['requested'] ?? null)
+    : null;
+$transcriptRequestedDisplay = $transcriptRequested === false
+    ? 'Not requested'
+    : display_optional_value($transcriptMetadataSource['requested'] ?? null);
+
+$transcriptMetadata = $transcriptMetadataSource === null
+    ? []
+    : display_metadata_rows([
+        'Requested' => [
+            'value' => $transcriptRequestedDisplay,
+        ],
+        'Queue UUID' => [
+            'value' => $transcriptMetadataSource['queue_uuid'] ?? null,
+        ],
+        'Queue Status' => [
+            'value' => $transcriptMetadataSource['queue_status'] ?? null,
+        ],
+        'Duration' => [
+            'value' => $transcriptMetadataSource['duration'] ?? null,
+        ],
+        'Hostname' => [
+            'value' => $transcriptMetadataSource['hostname'] ?? null,
+        ],
+        'Audio Path' => [
+            'value' => $transcriptMetadataSource['audio_path'] ?? null,
+        ],
+        'Audio Name' => [
+            'value' => $transcriptMetadataSource['audio_name'] ?? null,
+        ],
+        'Transcript Row Present' => [
+            'value' => $transcriptMetadataSource['transcript_row_present'] ?? null,
+        ],
+        'JSON Valid' => [
+            'value' => $transcriptMetadataSource['json_valid'] ?? null,
+        ],
+        'Segment Count' => [
+            'value' => $transcriptMetadataSource['segment_count'] ?? null,
+        ],
+        'Summary Present' => [
+            'value' => $transcriptMetadataSource['summary_present'] ?? null,
+        ],
+        'Summary Length' => [
+            'value' => $transcriptMetadataSource['summary_length'] ?? null,
+        ],
+    ]);
+
+$callFlowEvidenceMetadata = [];
+$callFlowEvidenceJson = null;
+
+if ($callFlowSource !== null) {
+    $callFlowEvidenceMetadata = display_metadata_rows([
+        'Present' => [
+            'value' => $callFlowSource['present'] ?? null,
+        ],
+        'Size Bytes' => [
+            'value' => $callFlowSource['size_bytes'] ?? null,
+        ],
+        'SHA256' => [
+            'value' => $callFlowSource['sha256'] ?? null,
+        ],
+        'JSON Valid' => [
+            'value' => $callFlowSource['json_valid'] ?? null,
+        ],
+    ]);
+
+    $flowPresent = bundle_boolish($callFlowSource['present'] ?? null);
+    $callFlowValue = $callFlowSource['call_flow'] ?? null;
+    if ($flowPresent === true && is_array($callFlowValue)) {
+        $callFlowEvidenceJson = pretty_json_block($callFlowValue);
+    }
+}
 
 $rawCdrProvenance = display_rows([
     'Section Status' => bundle_call_value($cdrSelectedCalls, [
@@ -303,6 +405,19 @@ $sectionsToRender = [
                 </tr>
             <?php endforeach; ?>
         </table>
+    <?php endif; ?>
+
+    <?php if ($heading === 'Routing and Call Flow' && $callFlowEvidenceJson !== null): ?>
+        <h3>Call Flow Evidence</h3>
+        <table>
+            <?php foreach ($callFlowEvidenceMetadata as $label => $value): ?>
+                <tr>
+                    <th><?= e($label) ?></th>
+                    <td><?= e($value) ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+        <pre><code><?= e($callFlowEvidenceJson) ?></code></pre>
     <?php endif; ?>
 <?php endforeach; ?>
 
