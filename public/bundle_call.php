@@ -370,6 +370,17 @@ $failedImportMetadata = display_rows([
     <meta charset="utf-8">
     <title>Siege Diagnostics - Selected Call Evidence</title>
     <link rel="stylesheet" href="/assets/css/app.css">
+    <style>
+        .evidence-block {
+            max-height: 24rem;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            background: #f8f8f8;
+        }
+    </style>
 </head>
 <body>
 
@@ -390,6 +401,10 @@ $sectionsToRender = [
     'Raw CDR Provenance' => $rawCdrProvenance,
     'Failed Import Metadata' => $failedImportMetadata,
 ];
+
+$storedCdrFieldList = isset($call['v_xml_cdr']) && is_array($call['v_xml_cdr'])
+    ? implode(', ', array_keys($call['v_xml_cdr']))
+    : null;
 ?>
 
 <?php foreach ($sectionsToRender as $heading => $rows): ?>
@@ -399,6 +414,9 @@ $sectionsToRender = [
     <?php else: ?>
         <table>
             <?php foreach ($rows as $label => $value): ?>
+                <?php if ($heading === 'Raw CDR Provenance' && $label === 'Stored v_xml_cdr Keys'): ?>
+                    <?php continue; ?>
+                <?php endif; ?>
                 <tr>
                     <th><?= e($label) ?></th>
                     <td><?= e($value) ?></td>
@@ -417,7 +435,17 @@ $sectionsToRender = [
                 </tr>
             <?php endforeach; ?>
         </table>
-        <pre><code><?= e($callFlowEvidenceJson) ?></code></pre>
+        <details>
+            <summary>Expand Call Flow JSON</summary>
+            <pre class="evidence-block"><code><?= e($callFlowEvidenceJson) ?></code></pre>
+        </details>
+    <?php endif; ?>
+
+    <?php if ($heading === 'Raw CDR Provenance' && $storedCdrFieldList !== null): ?>
+        <details>
+            <summary>Expand Stored CDR Field List</summary>
+            <pre class="evidence-block"><code><?= e($storedCdrFieldList) ?></code></pre>
+        </details>
     <?php endif; ?>
 <?php endforeach; ?>
 
